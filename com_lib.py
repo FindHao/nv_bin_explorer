@@ -12,4 +12,4 @@ DISASM_BIN_TO_PTX_CMD_STDOUT = "%s/bin/cuobjdump --gpu-architecture %s --dump-sa
 work_dir = "./"
 
 # where the kernel section start. You can get it from readelf
-kernel_section_offset = 0x500
+kernel_section_start_offset = 0x500

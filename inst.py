@@ -26,8 +26,9 @@ class Inst:
         tmp = inst[0].strip().split()
         if inst[0] == '{':  # Check dual issue
             self.pred = ""
+            tmp.pop(0)
         if inst[0].find('@') != -1:  # Check predicate, such as @P0
-            self.pred = tmp[0]
+            self.pred = tmp.pop(0)
 
         ops = tmp[0]
         # Fetech opcode

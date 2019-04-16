@@ -8,9 +8,10 @@ def arch2mode(arch):
     return arch.replace("_", "").upper()
 
 
-def dump(newcode, arch):
+def dump(newcode, arch, offset):
     """
     @:arg newcode: str. a 128-bit int. So we have to split it to two part
+    @:arg offset: current newcode's offset in cubin file
     @:return the content of new cubin
     """
     # version = int(arch.split("_")[1])
@@ -18,7 +19,8 @@ def dump(newcode, arch):
     # @todo check the data directory exist
     tmp_cubin = "%s/data/%s/%s.tmp.cubin" % (com_lib.work_dir, arch, arch)
     f = open(tmp_cubin, 'rb+')
-    f.seek(com_lib.kernel_section_offset)
+    # count by byte
+    f.seek(com_lib.kernel_section_start_offset + offset * 16)
     # for volta and turing
     tmp1 = int(newcode, 16)
     part0 = tmp1 >> 64
