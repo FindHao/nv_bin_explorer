@@ -2,6 +2,7 @@ class Inst:
     """
     It is used to filter different part from a line in SASS file.
     """
+
     def __init__(self, inst, raw=True):
         """
         Fetech binary encoding.
@@ -21,7 +22,9 @@ class Inst:
             self.enc = int(inst[1], 16) << 64 | int(inst[2], 16)
         else:  # From nvdisasm
             self.enc = None
-
+        # which bits mapped opcode's change
+        self.opcode_positions = []
+        self.modifier_positions = []
         # raw instruction line split
         tmp = inst[0].strip().split()
         if inst[0] == '{':  # Check dual issue

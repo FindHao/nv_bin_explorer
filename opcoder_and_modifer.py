@@ -3,6 +3,8 @@
 import logging
 import os
 import re
+import time
+
 from dumper import dump
 from inst import Inst
 import com_lib
@@ -11,8 +13,10 @@ import argparse
 sass_content = ''
 code_line_reg = re.compile(r'/\*.{4}\*/ +(.+?); +?/\* 0x(.+) \*/\n.+?/\* 0x(.{16}) \*/')
 # example:['MOV': [1,2,3,4,5], 'ADD': [1,2,3,4,5,6,7,8]]
-# record opcode and the bit position
+# record opcode and mapped bit position
 ops = {}
+# This list records instructions including modifers and oprands
+instructions = []
 
 
 def init_sass_cubin_files(input_file, arch):
@@ -31,9 +35,26 @@ def init_sass_cubin_files(input_file, arch):
         logging.error("Error: when copy input cubin file:\t%s" % tmp_read)
 
 
-def filter_change():
-    """Compare the origin inst and redisassember inst, and record the changed part"""
-    pass
+def filter_change(origin_inst, dump_file_content, base, newcode, line_index, reversal_bit_id):
+    """Compare the origin inst and redisassember inst, and record the changed part
+    """
+    tmp_result2 = code_line_reg.findall(dump_file_content)
+    if not tmp_result2:
+        logging.warning("generated file %s has no legal content" % newcode)
+    tmp_line = tmp_result2[line_index]
+    tmp_inst = Inst(tmp_line)
+    # confirm opcode part
+    if tmp_inst.op != origin_inst.op:
+        logging.info("Opcode changes: %s => %s when bit [%d] is flipped from [%d]\t\tChange to:%s",
+                     origin_inst.op, tmp_inst.op, reversal_bit_id, (base >> reversal_bit_id) & 0x1, tmp_line[0])
+
+        # bits = bits | (((base >> i) & 0x1) << i)
+        origin_inst.opcode_positions.append(reversal_bit_id)
+    # confirm modifier part
+    elif tmp_inst.modifier != origin_inst.modifier:
+        logging.info("Modifier changes: %s => %s when bit [%d] is flipped from [%d]\t\tChange to:%s",
+                     origin_inst.modifier, tmp_inst.modifier, reversal_bit_id, (base >> reversal_bit_id) & 0x1, tmp_line[0])
+        origin_inst.modifier_positions.append(reversal_bit_id)
 
 
 def work(input_file_name, output_file, section_start):
@@ -44,6 +65,8 @@ def work(input_file_name, output_file, section_start):
     # input_file_name = 'gaussian.cubin'
     init_sass_cubin_files(input_file_name, arch)
     logging.basicConfig(filename="./log/%s" % output_file, filemode="a", level=logging.INFO)
+    logging.info("Time:\t%s" % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+
     com_lib.kernel_section_start_offset = int(section_start, 16)
 
     with open("%s.sass" % os.path.splitext(input_file_name)[0], 'r')as fin:
@@ -55,10 +78,11 @@ def work(input_file_name, output_file, section_start):
     # @todo: check is there any irregular code
     for j, line in enumerate(tmp_result[:2800]):
         logging.info("\nraw line:\t\t%s" % line[0])
-        origin_inst = Inst(line)
-        base = origin_inst.enc
+        a_origin_inst = Inst(line)
+        instructions.append(a_origin_inst)
+
+        base = a_origin_inst.enc
         bits = 0x0
-        positions = []
         # In volta and turing, len of the instruction code is 128bitk
         for i in range(0, 128):
             # i from right to left
@@ -68,20 +92,12 @@ def work(input_file_name, output_file, section_start):
             # print(dump_file_content)
             # Compare the disassemble to check which field changes: opcode, operand or modifer
             if dump_file_content and dump_file_content.find("?") == -1 and dump_file_content.find("error") == -1:
-                tmp_result2 = code_line_reg.findall(dump_file_content)
-                if not tmp_result2:
-                    logging.warning("generated file %s has no legal content" % newcode)
-                tmp_line = tmp_result2[j]
-                tmp_inst = Inst(tmp_line)
-                if tmp_inst.op != origin_inst.op:
-                    logging.info("Opcode changes: %s => %s when bit [%d] is flipped from [%d]\t\tChange to:%s",
-                                 origin_inst.op, tmp_inst.op, i, (base >> i) & 0x1, tmp_line[0])
-                    bits = bits | (((base >> i) & 0x1) << i)
-                    positions.append(i)
-        # if len(positions) > 0:
-        #     logging.info("0b{:0128b}".format(bits) + ": %s opcode bits %s: ", origin_inst.op, positions)
-        if len(positions) > 0:
-            ops[origin_inst.op] = list(set(ops.get(origin_inst.op, []) + positions))
+                filter_change(a_origin_inst, dump_file_content, base, newcode, j, i)
+            # if len(positions) > 0:
+            #     logging.info("0b{:0128b}".format(bits) + ": %s opcode bits %s: ", origin_inst.op, positions)
+
+        if len(a_origin_inst.opcode_positions) > 0:
+            ops[a_origin_inst.op] = list(set(ops.get(a_origin_inst.op, []) + a_origin_inst.opcode_positions))
 
     for node in ops:
         logging.info("%s:\t[%s]", node, ",".join(str(x) for x in ops[node]))
