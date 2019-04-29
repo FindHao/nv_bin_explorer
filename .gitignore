@@ -174,3 +174,12 @@ data/
 将删除 test.ptx
 将删除 test.sass
 log/
+将删除 a
+将删除 gaussian.cubin
+将删除 gaussian.sass
+将删除 matrix.cubin
+将删除 matrix.sass
+将删除 nv_bin_exp.py
+将删除 vectorAdd.sm_50.cubin
+将删除 vectorAdd.sm_75.cubin
+将删除 vectorAdd.sm_75.sass
