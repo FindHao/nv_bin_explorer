@@ -25,6 +25,7 @@ class Inst:
         # which bits mapped opcode's change
         self.opcode_positions = []
         self.modifier_positions = []
+        self.operand_positions = []
         # raw instruction line split
         tmp = inst[0].strip().split()
         if inst[0] == '{':  # Check dual issue
@@ -38,6 +39,6 @@ class Inst:
         self.op = ops.split(".")[0]
         # Split opcode
         self.modifier = ops.split(".")[1:]
-
-        # Fetech operands and remove ; and ,
-        self.operands = ' '.join(tmp[1:]).replace(",", "").replace("-", "").replace("|", "")
+        self.operand_positions = [[] for _ in range(4)]
+        # Fetech operands and remove ; and ,. It's list format
+        self.operands = [_.replace(",", "").replace("-", "").replace("|", "") for _ in tmp[1:]]
